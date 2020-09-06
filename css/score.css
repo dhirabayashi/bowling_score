@@ -1,0 +1,16 @@
+@charset "UTF-8";
+
+table {
+    border: double;
+}
+tr {
+    border: solid thin;
+}
+th {
+    border: solid thin;
+}
+td {
+    border: solid thin;
+    width: 30px;
+    height: 30px;
+}
