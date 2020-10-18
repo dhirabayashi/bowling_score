@@ -6,16 +6,46 @@
     <title>ボウリングスコア</title>
 </head>
 <body>
-    <table>
-        <tr id="score_header">
-        </tr>
-        <tr id="score_separate">
-        </tr>
-        <tr id="score_sum">
-        </tr>
-        <tr id="score_select">
-        </tr>
-    </table>
-<script src="js/score.js"></script>
+    <div id="app">
+        <table>
+            <!-- ヘッダ -->
+            <tr>
+                <th v-for="(frame, i) in frames" :key="'header' + i" :colspan="frame.selectBoxes.length">
+                    {{ frame.num }}
+                </th>
+            </tr>
+            <!-- 個別のスコア -->
+            <tr>
+                <template v-for="(frame, i) in frames">
+                    <td v-for="j of frame.selectBoxes.length" :key="'score_separate' + i + j" :id="'score_separate' + i + '_' + j">
+                        {{ frame.scores[j - 1] }}
+                    </td>
+                </template>
+            </tr>
+            <!-- スコア合計値 -->
+            <tr id="score_sum">
+                <td v-for="(frame, i) in frames" :key="'score_sum' + i" :colspan="frame.selectBoxes.length">
+                    {{ calcTotalScore(i) }}
+                </td>
+            </tr>
+            <!-- スコア入力用プルダウン -->
+            <tr id="score_select">
+                <td v-for="(frame, i) in frames" :key="'score_select' + i" :colspan="frame.selectBoxes.length">
+                    <template v-for="(select_box, j) in frame.selectBoxes">
+                        <label :for="'score_select' + i + '_' + j" >{{ j + 1 }}投目:</label>
+                        <br>
+                        <select :id="'score_select' + i + '_' + j" @change="changeScore(i, j, $event)" :disabled="isDisabled(i, j)">
+                            <option v-for="score in select_box.options" :value="score" :key="'option' + i + '_' + j + '_' + score">
+                                {{ score }}
+                            </option>
+                        </select>
+                        <br>
+                    </template>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <script src="./js/vue.js"></script>
+    <script src="./js/score.js"></script>
 </body>
 </html>

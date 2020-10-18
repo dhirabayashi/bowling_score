@@ -1,141 +1,94 @@
-// ヘッダー
-let scoreHeader = document.getElementById("score_header");
-for(let i = 1; i <= 10; i++) {
-    let colspan;
-    if(i == 10) {
-        colspan = 3;
-    } else {
-        colspan = 2;
-    }
-    let th = document.createElement("th");
-    th.colSpan = colspan;
-    th.innerHTML = i;
-    scoreHeader.appendChild(th);
-}
+new Vue({
+    el: '#app',
+    data() {
+        let frames = [];
+        for(let i = 0; i < 10; i++) {
+            // 10フレームだけ3投目がありうる
+            let count = i === 9 ? 3 : 2;
+            let frame = {};
 
-// 個別のスコア
-const separateId = "score_separate";
-let scoreSeparate = document.getElementById(separateId);
-for(let i = 1; i <= 10; i++) {
-    let numOfInput;
-    if(i === 10) {
-        numOfInput = 3;
-    } else {
-        numOfInput = 2;
-    }
-    for(let j = 1; j <= numOfInput; j++) {
-        let td = document.createElement("td");
-        td.id = separateId + i + "_" + j;
-        scoreSeparate.appendChild(td);    
-    }
-}
+            // フレーム番号
+            frame.num = i + 1;
+            // スコア入力用プルダウン
+            let selectBoxes = [];
+            for(let j = 0; j < count; j++) {
+                let disabled = j !== 0;
+                selectBoxes.push({ options: ['', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], disabled: disabled });
+            }
+            frame.selectBoxes = selectBoxes;
 
-// スコア合計
-const sumId = "score_sum";
-let scoreSum = document.getElementById(sumId);
-for(let i = 1; i <= 10; i++) {
-    let colSpan;
-    if(i === 10) {
-        colSpan = 3;
-    } else {
-        colSpan = 2;
-    }
-    let td = document.createElement("td");
-    td.colSpan = colSpan;
-    scoreSum.appendChild(td);
-}
+            // スコア
+            let scores = [];
+            for(let j = 0; j < count; j++) {
+                scores.push('');
+            }
+            frame.scores = scores;
 
-// スコア選択プルダウン
-const selectId = "score_select";
-let scoreSelect = document.getElementById(selectId);
-for(let i = 1; i <= 10; i++) {
-    let numOfInput;
-    if(i === 10) {
-        numOfInput = 3;
-    } else {
-        numOfInput = 2;
-    }
-
-    let td = document.createElement("td");
-    td.colSpan = numOfInput;
-
-    for(let j = 1; j <= numOfInput; j++) {
-        // ラベル
-        let label = document.createElement("label");
-        let id = selectId + i + "_" + j;
-        label.for = id;
-        label.innerHTML = j + "投目:";
-        td.appendChild(label);
-        td.appendChild(document.createElement("br"));
-
-        // プルダウン
-        let select = document.createElement("select");
-        select.id = id;
-
-        initOptions(select);
-
-        td.appendChild(select);
-        td.appendChild(document.createElement("br"));
-
-        if(j !== 1) {
-            select.disabled = true;
+            frames.push(frame);
         }
+        return {
+            frames: frames
+        };
+    },
+    methods: {
+        changeScore(i, j, event) {
+            let options = ['', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            let value = event.target.value;
 
-        select.onchange = function() {
-            // 1投目が選択されるまで2投目は非活性
-            let select2 = document.getElementById(selectId + i + "_2");
-            if(j === 1 && select.value !== "") {
-                select2.disabled = false;
-
-                // 1投目と2投目で合計10を超えないようにする
-                let options = select2.children;
-                removeOptions(select2);
-
-                let empty = document.createElement("option");
-                empty.value = "";
-                empty.innerHTML = "";
-                select2.appendChild(empty);
-                let max = 10 - parseInt(select.value);
-                for(let k = 0; k <= max; k++) {
-                    let newOption = document.createElement("option");
-                    newOption.value = k;
-                    newOption.innerHTML = k;
-                    select2.appendChild(newOption);
-                }
-            } else if(j === 1 && select.value === "") {
-                select2.options[0].selected = true;
-                select2.disabled = true;
-                document.getElementById(separateId + i + "_2").innerHTML = "";
+            // スコアの設定
+            // ストライク
+            if(j === 0 && value === '10') {
+                this.$set(this.frames[i].scores, j, 'Ｘ');
+                return;
             }
 
-            // テーブルに値を設定
-            let score = document.getElementById(separateId + i + "_" + j);
-            score.innerHTML = select.value;
-        };
+            this.$set(this.frames[i].scores, j, value);
+
+            // 一投目のプルダウンで値が選択された場合、値に応じて二投目のプルダウンの状態を変える
+            if(j === 0) {
+                if(value === '') {
+                    this.frames[i].selectBoxes[j+1].disabled = true;
+                    this.frames[i].selectBoxes[j+1].options = options
+                } else {
+                    this.frames[i].selectBoxes[j+1].disabled = false;
+                    // 合計スコアが10を超えないように二投目のプルダウンで選択可能な値を絞る
+                    let trancated_options = [];
+                    let length = options.length - value - 1;
+                    for(let k = 0; k < length; k++) {
+                        trancated_options.push(k);
+                    }
+                    this.frames[i].selectBoxes[j+1].options = trancated_options;
+                }
+            }
+        },
+        calcTotalScore(i) {
+            // ストライク
+            //if(this.frames[i].scores[0] === 'Ｘ') {
+            //}
+
+            // 完全には入力されていない場合は何も表示しない
+            let scores = this.frames[i].scores.filter(function(score) {
+                return score !== '';
+            })
+            if(scores.length !== this.frames[i].scores.length) {
+                return '';
+            }
+
+            let radix = 10;
+            let totalScore = 0;
+            for(let j = 0; j <= i; j++) {
+                for(let k = 0; k < this.frames[j].scores.length; k++) {
+                    totalScore += parseInt(this.frames[j].scores[k], radix);
+                }
+            }
+            return totalScore;
+        }
+    },
+    computed: {
+        isDisabled: function() {
+            return function(i, j) {
+                return this.frames[i].selectBoxes[j].disabled;
+            }
+        }
     }
-    scoreSelect.appendChild(td);
-}
-
-function removeOptions(select) {
-    let options = select.children;
-    for(let i = 0, size = options.length; i < size; i++) {
-        options[0].remove();
-    }    
-}
-
-function initOptions(select) {
-    // いったん全部消す
-    removeOptions(select);
-
-    let option = document.createElement("option");
-    option.value = "";
-    option.innerHTML = "";
-    select.appendChild(option);
-
-    for(let i = 0; i <= 10; i++) {
-        option = document.createElement("option");
-        option.value = i;
-        option.innerHTML = i;
-        select.appendChild(option);
-    }
-}
+});
