@@ -20,7 +20,7 @@ new Vue({
             // スコア
             let scores = [];
             for(let j = 0; j < count; j++) {
-                scores.push('');
+                scores.push(new Score());
             }
             frame.scores = scores;
 
@@ -31,54 +31,83 @@ new Vue({
         };
     },
     methods: {
-        changeScore(i, j, event) {
+        changeScore(frameIndex, selectIndex, event) {
             let options = ['', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
             let value = event.target.value;
+            let intValue = 0;
+            if(value !== '') {
+                intValue = parseInt(value, 10);
+            }
 
             // スコアの設定
+            let score = this.frames[frameIndex].scores[selectIndex];
+            score.add(intValue);
+
             // ストライク
-            if(j === 0 && value === '10') {
-                this.$set(this.frames[i].scores, j, 'Ｘ');
+            if(selectIndex === 0 && intValue === 10) {
+                score.informStrikeOccurred();
+                return;
+            // スペア
+            } else if(selectIndex === 1
+                    && (this.frames[frameIndex].scores[selectIndex-1].intValue() + score.intValue() === 10)) {
+                score.informSpareOccurred();
                 return;
             }
 
-            this.$set(this.frames[i].scores, j, value);
+            score.informScoreDetermined();
 
             // 一投目のプルダウンで値が選択された場合、値に応じて二投目のプルダウンの状態を変える
-            if(j === 0) {
+            if(selectIndex === 0) {
                 if(value === '') {
-                    this.frames[i].selectBoxes[j+1].disabled = true;
-                    this.frames[i].selectBoxes[j+1].options = options
+                    this.frames[frameIndex].selectBoxes[selectIndex+1].disabled = true;
+                    this.frames[frameIndex].selectBoxes[selectIndex+1].options = options
                 } else {
-                    this.frames[i].selectBoxes[j+1].disabled = false;
+                    this.frames[frameIndex].selectBoxes[selectIndex+1].disabled = false;
                     // 合計スコアが10を超えないように二投目のプルダウンで選択可能な値を絞る
                     let trancated_options = [];
                     let length = options.length - value - 1;
-                    for(let k = 0; k < length; k++) {
-                        trancated_options.push(k);
+                    for(let i = 0; i < length; i++) {
+                        trancated_options.push(i);
                     }
-                    this.frames[i].selectBoxes[j+1].options = trancated_options;
+                    this.frames[frameIndex].selectBoxes[selectIndex+1].options = trancated_options;
                 }
             }
-        },
-        calcTotalScore(i) {
-            // ストライク
-            //if(this.frames[i].scores[0] === 'Ｘ') {
-            //}
 
-            // 完全には入力されていない場合は何も表示しない
-            let scores = this.frames[i].scores.filter(function(score) {
-                return score !== '';
-            })
-            if(scores.length !== this.frames[i].scores.length) {
-                return '';
+
+            // 2フレーム以降は、前にストライクやスペアが起きていてスコア未確定の可能性がある
+            // TODO 10フレーム目の対応
+            // ストライクの場合
+            // TODO ストライクが連鎖する場合はうまく動かない
+            if(frameIndex >= 1 && selectIndex === 1
+                    && this.frames[frameIndex-1].scores[0].getStatus() === STRIKE_OCCURRED) {
+                
+                this.frames[frameIndex-1].scores[0].add(this.frames[frameIndex].scores[0].intValue() + intValue);
+                this.frames[frameIndex-1].scores[0].informScoreDetermined();
+                this.frames[frameIndex-1].scores[1].informScoreDetermined();                
             }
 
-            let radix = 10;
+            // TODO スペアの場合
+            
+        
+            // 完全には入力されていない場合は何も表示しない
+            let scores = this.frames[frameIndex].scores.filter(function(score) {
+                return score.toString() !== '';
+            })
+            if(scores.length !== this.frames[frameIndex].scores.length) {
+                return;
+            }
+
+        },
+        calcTotalScore(frameIndex) {
             let totalScore = 0;
-            for(let j = 0; j <= i; j++) {
-                for(let k = 0; k < this.frames[j].scores.length; k++) {
-                    totalScore += parseInt(this.frames[j].scores[k], radix);
+            for(let i = 0; i <= frameIndex; i++) {
+                for(let j = 0; j < this.frames[i].scores.length; j++) {
+                    let score = this.frames[i].scores[j];
+                    // 一つでもスコア未確定なら何も表示しない
+                    if(!score.isScoreDetermined()) {
+                        return '';
+                    }
+                    totalScore += score.intValue();
                 }
             }
             return totalScore;

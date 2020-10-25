@@ -18,7 +18,7 @@
             <tr>
                 <template v-for="(frame, i) in frames">
                     <td v-for="j of frame.selectBoxes.length" :key="'score_separate' + i + j" :id="'score_separate' + i + '_' + j">
-                        {{ frame.scores[j - 1] }}
+                        {{ frame.scores[j - 1].toString() }}
                     </td>
                 </template>
             </tr>
@@ -46,6 +46,7 @@
         </table>
     </div>
     <script src="./js/vue.js"></script>
+    <script src="./js/class.js"></script>
     <script src="./js/score.js"></script>
 </body>
 </html>
