@@ -17,7 +17,7 @@
             <!-- 個別のスコア -->
             <tr>
                 <template v-for="(frame, i) in frames">
-                    <td v-for="j of frame.selectBoxes.length" :key="'score_separate' + i + j" :id="'score_separate' + i + '_' + j">
+                    <td v-for="j of frame.selectBoxes.length" :key="'score_separate' + i + j">
                         {{ frame.scores[j - 1].toString() }}
                     </td>
                 </template>
@@ -41,6 +41,8 @@
                         </select>
                         <br>
                     </template>
+                    <input :id="'split' + i"  type="checkbox" v-model="frame.split.checked" @change="changeSplitCheckbox(i)" />
+                    <label :for="'split' + i" >split</label>
                 </td>
             </tr>
         </table>

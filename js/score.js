@@ -1,3 +1,6 @@
+// Fはファール
+let options = ['', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'F'];
+
 new Vue({
     el: '#app',
     data() {
@@ -12,8 +15,9 @@ new Vue({
             // スコア入力用プルダウン
             let selectBoxes = [];
             for(let j = 0; j < count; j++) {
-                let disabled = j !== 0;
-                selectBoxes.push({ options: ['', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], disabled: disabled });
+                // 初期状態は1フレーム目の1投目だけ活性
+                let disabled = i !== 0 || j !== 0;
+                selectBoxes.push({ options: options, disabled: disabled });
             }
             frame.selectBoxes = selectBoxes;
 
@@ -24,6 +28,9 @@ new Vue({
             }
             frame.scores = scores;
 
+            // スプリットかどうか
+            frame.split = { checked: false, disabled: false };
+
             frames.push(frame);
         }
         return {
@@ -31,59 +38,112 @@ new Vue({
         };
     },
     methods: {
+        // プルダウンでスコアが選択された際にスコアの計算やUIの変更などを行う
         changeScore(frameIndex, selectIndex, event) {
+            // スペアが発生していた箇所のスコアを確定可能かどうか
             function canDetermineScoreAtPrevious(_this) {
                 // この関数の中でthisを直接使うと想定と違うオブジェクトを指してしまうため、引数で受け取る
                 return frameIndex >= 1 && selectIndex === 1
                     && _this.frames[frameIndex-1].scores[0].getStatus() === STRIKE_OCCURRED;
             }
 
+            // スペアが発生していた箇所のスコアを確定可能かどうか
             function canDetermineScoreAtTwoPrevious(_this) {
                 return frameIndex >= 2 && selectIndex == 0
                     && _this.frames[frameIndex-2].scores[0].getStatus() === STRIKE_OCCURRED
                     && _this.frames[frameIndex-1].scores[0].getStatus() === STRIKE_OCCURRED;
             }
 
-            let options = ['', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            // 残りピン数に応じて、プルダウンの状態を変える
+            function changeSubsequentPullDown(_this, frameIndex, selectIndex, value) {
+                // フレーム内で後続のプルダウンがなかったら何もする必要はない
+                if((frameIndex !== 9 && selectIndex === 1) || (frameIndex === 9 && selectIndex === 2)) {
+                    return;
+                }
+
+                // ストライクだったら何もする必要はない（10フレームを除く）
+                let score = _this.frames[frameIndex].scores[selectIndex];
+                if(score.getStatus() === STRIKE_OCCURRED && frameIndex !== 9) {
+                    return;
+                }
+
+                if(value === '') {
+                    _this.frames[frameIndex].selectBoxes[selectIndex+1].disabled = true;
+                    _this.frames[frameIndex].selectBoxes[selectIndex+1].options = options;
+                } else if(value === 'F') {
+                    _this.frames[frameIndex].selectBoxes[1].disabled = false;
+                } else {
+                    // 合計スコアが10を超えないように二投目のプルダウンで選択可能な値を絞る
+                    let trancated_options = [];
+                    // プルダウンには空文字とFの2つの数値ではない要素があるので、その分を引いている
+                    let length = options.length - value - 2;
+                    for(let i = 0; i < length; i++) {
+                        trancated_options.push(i);
+                    }
+                    trancated_options.unshift('');
+                    trancated_options.push('F');
+                    _this.frames[frameIndex].selectBoxes[selectIndex+1].options = trancated_options;
+
+                    // どのフレームでも2投目は無条件で活性化
+                    _this.frames[frameIndex].selectBoxes[1].disabled = false;
+
+                    // 10フレームの場合の特別な考慮
+                    if(frameIndex === 9) {
+                        let firstScoreInFrame = _this.frames[frameIndex].scores[0];
+                        // ストライクかスペアが発生した場合は3投目の解禁とピンの再配置が必要
+                        if(selectIndex === 1) {
+                            // ストライクが起こっていた場合
+                            if(firstScoreInFrame.getStatus() === STRIKE_OR_SPARE_OCCURRED_AT_FRAME_TEN) {
+                                _this.frames[frameIndex].selectBoxes[2].disabled = false;
+                                _this.frames[frameIndex].selectBoxes[2].options = options;
+                            }
+                            // スペアが起こった場合
+                            if(score.getStatus() === STRIKE_OR_SPARE_OCCURRED_AT_FRAME_TEN) {
+                                _this.frames[frameIndex].selectBoxes[2].disabled = false;
+                                _this.frames[frameIndex].selectBoxes[2].options = options;
+                            }
+                        // 1投目がストライクだった場合は2投目のピン再配置
+                        } else if(selectIndex === 0 && firstScoreInFrame.getStatus() === STRIKE_OR_SPARE_OCCURRED_AT_FRAME_TEN) {
+                            _this.frames[frameIndex].selectBoxes[1].options = options;
+                        }
+                    }
+                }
+            }
+
             let value = event.target.value;
-            let intValue = 0;
-            if(value !== '') {
-                intValue = parseInt(value, 10);
+            let intValue = parseInt(value, 10);
+            if(!Number.isInteger(intValue)) {
+                intValue = 0;
             }
 
             // スコアの設定
             let score = this.frames[frameIndex].scores[selectIndex];
             score.add(intValue);
 
-            // ストライク
-            if(selectIndex === 0 && intValue === 10) {
-                score.informStrikeOccurred();
             // スペア
-            } else if(selectIndex === 1
+            if(selectIndex === 1
                     && (this.frames[frameIndex].scores[selectIndex-1].intValue() + score.intValue() === 10)) {
-                score.informSpareOccurred();
+
+                // 10フレームの場合、1投目がストライクだったらスペアではない
+                if(frameIndex === 9) {
+                    if(this.frames[frameIndex].scores[selectIndex-1]
+                        .getStatus() !== STRIKE_OR_SPARE_OCCURRED_AT_FRAME_TEN) {
+                        
+                        score.informSpareOccurred(frameIndex === 9);
+                    }
+                } else {
+                    score.informSpareOccurred(frameIndex === 9);
+                }
+            // ストライク
+            } else if((selectIndex === 0 || frameIndex === 9) && intValue === 10) {
+                score.informStrikeOccurred(frameIndex === 9);
             } else {
                 score.informScoreDetermined();
-                // 一投目のプルダウンで値が選択された場合、値に応じて二投目のプルダウンの状態を変える
-                if(selectIndex === 0) {
-                    if(value === '') {
-                        this.frames[frameIndex].selectBoxes[selectIndex+1].disabled = true;
-                        this.frames[frameIndex].selectBoxes[selectIndex+1].options = options
-                    } else {
-                        this.frames[frameIndex].selectBoxes[selectIndex+1].disabled = false;
-                        // 合計スコアが10を超えないように二投目のプルダウンで選択可能な値を絞る
-                        let trancated_options = [];
-                        let length = options.length - value - 1;
-                        for(let i = 0; i < length; i++) {
-                            trancated_options.push(i);
-                        }
-                        this.frames[frameIndex].selectBoxes[selectIndex+1].options = trancated_options;
-                    }
-                }
             }
+            // プルダウンで値が選択された場合、値に応じて後続のプルダウンの状態を変える
+            changeSubsequentPullDown(this, frameIndex, selectIndex, value);
 
             // 2フレーム以降は、前にストライクやスペアが起きていてスコア未確定の可能性がある
-            // TODO 10フレーム目の対応
             // 一つ前のフレームのストライクのスコアを決定できる場合
             if(canDetermineScoreAtPrevious(this)) {                
                 this.frames[frameIndex-1].scores[0].add(this.frames[frameIndex].scores[0].intValue() + intValue);
@@ -101,18 +161,38 @@ new Vue({
             // 一つ前のスペアのスコアを決定できる場合
             if(frameIndex >= 1 && selectIndex === 0
                     && this.frames[frameIndex-1].scores[1].getStatus() === SPARE_OCCURRED) {
+                
                 this.frames[frameIndex-1].scores[1].add(intValue);
                 this.frames[frameIndex-1].scores[1].informScoreDetermined();                
             }
-        
-            // 完全には入力されていない場合は何も表示しない
-            let scores = this.frames[frameIndex].scores.filter(function(score) {
-                return score.toString() !== '';
-            })
-            if(scores.length !== this.frames[frameIndex].scores.length) {
-                return;
+
+            // ピンが一本も倒れなかった場合の表示文字列の対応
+            if(intValue === 0) {
+                let index = selectIndex;
+                // 10フレーム3投目の対応
+                if(frameIndex === 9 && selectIndex === 2) {
+                    if(this.frames[frameIndex].scores[selectIndex-1].getStatus()
+                            === STRIKE_OR_SPARE_OCCURRED_AT_FRAME_TEN) {
+                        index = 0;
+                    } else {
+                        index = 1;
+                    }
+                }
+                score.informZeroPoint(index);
+            }
+
+            // ファールの場合の表示文字列の対応
+            if(value === 'F') {
+                score.informFoulOccurred();
+            }
+
+            // 入力が終わったら非活性化し、次を活性化する
+            this.frames[frameIndex].selectBoxes[selectIndex].disabled = true;
+            if(frameIndex !== 9 && (selectIndex === 1 || score.getStatus() === STRIKE_OCCURRED)) {
+                this.frames[frameIndex+1].selectBoxes[0].disabled = false;
             }
         },
+        // 合計スコアを計算して返す
         calcTotalScore(frameIndex) {
             let totalScore = 0;
             for(let i = 0; i <= frameIndex; i++) {
@@ -120,12 +200,27 @@ new Vue({
                     let score = this.frames[i].scores[j];
                     // 一つでもスコア未確定なら何も表示しない
                     if(!score.isScoreDetermined()) {
-                        return '';
+                        // ただし10フレームの3投目が非活性な場合は表示する
+                        if(i !== 9 || j !== 2 || !this.frames[i].selectBoxes[j].disabled) {
+                            return '';
+                        }
                     }
                     totalScore += score.intValue();
                 }
             }
             return totalScore;
+        },
+        // splitのチェックボックスが変更された際にスプリットの表示や解除を行う
+        // TODO 10フレーム目の対応
+        changeSplitCheckbox(frameIndex) {
+            let checked = this.frames[frameIndex].split.checked;
+            let score = this.frames[frameIndex].scores[0];
+
+            if(checked) {
+                score.informSplitOccurred();
+            } else {
+                score.informSplitCancelOccurred();
+            }
         }
     },
     computed: {
