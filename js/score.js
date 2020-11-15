@@ -29,7 +29,15 @@ new Vue({
             frame.scores = scores;
 
             // スプリットかどうか
-            frame.split = { checked: false, disabled: false };
+            frame.splits = []
+            // 10フレームは1〜3の全てでスプリットの可能性がある
+            let splitCount = 1;
+            if(i === 9) {
+                splitCount = 3;
+            }
+            for(let j = 0; j < splitCount; j++) {
+                frame.splits.push({ checked: false, disabled: true });
+            }
 
             frames.push(frame);
         }
@@ -95,7 +103,6 @@ new Vue({
                             // ストライクが起こっていた場合
                             if(firstScoreInFrame.getStatus() === STRIKE_OR_SPARE_OCCURRED_AT_FRAME_TEN) {
                                 _this.frames[frameIndex].selectBoxes[2].disabled = false;
-                                _this.frames[frameIndex].selectBoxes[2].options = options;
                             }
                             // スペアが起こった場合
                             if(score.getStatus() === STRIKE_OR_SPARE_OCCURRED_AT_FRAME_TEN) {
@@ -191,6 +198,25 @@ new Vue({
             if(frameIndex !== 9 && (selectIndex === 1 || score.getStatus() === STRIKE_OCCURRED)) {
                 this.frames[frameIndex+1].selectBoxes[0].disabled = false;
             }
+
+            // スプリットのチェックボックスの制御
+            // 1投目がストライクじゃなかったら2投目はスプリットになり得ない（1投目でスペアはあり得ないので区別しなくていい）
+            function isNotStrikeOccurredAtFirst(_this) {
+                return selectIndex === 1 && _this.frames[frameIndex].scores[selectIndex-1].getStatus() !== STRIKE_OR_SPARE_OCCURRED_AT_FRAME_TEN;
+            }
+            // 2投目がスペアでもストライクでもなかったら3投目はスプリットになりえない
+            function isNotSpareAndStrikeOccurredAtSecond(_this) {
+                return selectIndex === 2 && _this.frames[frameIndex].scores[selectIndex-1].getStatus() !== STRIKE_OR_SPARE_OCCURRED_AT_FRAME_TEN;
+            }
+
+            // 10フレーム目の考慮
+            if(frameIndex === 9 && (isNotStrikeOccurredAtFirst(this) || isNotSpareAndStrikeOccurredAtSecond(this))) {
+                return;
+            }
+            // スプリットは倒れたピンの数が2〜8でないと発生し得ない（2本倒れただけでスプリットはまずあり得ないが、可能性はゼロではない）
+            if(2 <= intValue && intValue <= 8 ) {
+                this.frames[frameIndex].splits[selectIndex].disabled = false;
+            }
         },
         // 合計スコアを計算して返す
         calcTotalScore(frameIndex) {
@@ -211,10 +237,9 @@ new Vue({
             return totalScore;
         },
         // splitのチェックボックスが変更された際にスプリットの表示や解除を行う
-        // TODO 10フレーム目の対応
-        changeSplitCheckbox(frameIndex) {
-            let checked = this.frames[frameIndex].split.checked;
-            let score = this.frames[frameIndex].scores[0];
+        changeSplitCheckbox(frameIndex, splitIndex) {
+            let checked = this.frames[frameIndex].splits[splitIndex].checked;
+            let score = this.frames[frameIndex].scores[splitIndex];
 
             if(checked) {
                 score.informSplitOccurred();

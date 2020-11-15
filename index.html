@@ -41,8 +41,11 @@
                         </select>
                         <br>
                     </template>
-                    <input :id="'split' + i"  type="checkbox" v-model="frame.split.checked" @change="changeSplitCheckbox(i)" />
-                    <label :for="'split' + i" >split</label>
+                    <div v-for="(split, j) in frame.splits">
+                        <input :id="'split' + i + '_' + j"  type="checkbox" v-model="split.checked"
+                            @change="changeSplitCheckbox(i, j)" :disabled="split.disabled" />
+                        <label :for="'split' + i + '_' + j" >split</label>
+                    </div>
                 </td>
             </tr>
         </table>
