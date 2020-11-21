@@ -7,14 +7,14 @@ new Vue({
         let frames = [];
         for(let i = 0; i < 10; i++) {
             // 10フレームだけ3投目がありうる
-            let count = i === 9 ? 3 : 2;
+            let numOfForm = i === 9 ? 3 : 2;
             let frame = {};
 
             // フレーム番号
             frame.num = i + 1;
             // スコア入力用プルダウン
             let selectBoxes = [];
-            for(let j = 0; j < count; j++) {
+            for(let j = 0; j < numOfForm; j++) {
                 // 初期状態は1フレーム目の1投目だけ活性
                 let disabled = i !== 0 || j !== 0;
                 selectBoxes.push({ options: options, disabled: disabled });
@@ -23,7 +23,7 @@ new Vue({
 
             // スコア
             let scores = [];
-            for(let j = 0; j < count; j++) {
+            for(let j = 0; j < numOfForm; j++) {
                 scores.push(new Score());
             }
             frame.scores = scores;
@@ -31,11 +31,11 @@ new Vue({
             // スプリットかどうか
             frame.splits = []
             // 10フレームは1〜3の全てでスプリットの可能性がある
-            let splitCount = 1;
+            let numOfSplitCheckbox = 1;
             if(i === 9) {
-                splitCount = 3;
+                numOfSplitCheckbox = 3;
             }
-            for(let j = 0; j < splitCount; j++) {
+            for(let j = 0; j < numOfSplitCheckbox; j++) {
                 frame.splits.push({ checked: false, disabled: true });
             }
 
@@ -49,8 +49,7 @@ new Vue({
         // プルダウンでスコアが選択された際にスコアの計算やUIの変更などを行う
         changeScore(frameIndex, selectIndex, event) {
             // スペアが発生していた箇所のスコアを確定可能かどうか
-            function canDetermineScoreAtPrevious(_this) {
-                // この関数の中でthisを直接使うと想定と違うオブジェクトを指してしまうため、引数で受け取る
+            function canDetermineScoreAtPrevious(_this) { // 関数の中でthisを直接使うと想定と違うオブジェクトを指してしまうため、引数で受け取る
                 return frameIndex >= 1 && selectIndex === 1
                     && _this.frames[frameIndex-1].scores[0].getStatus() === STRIKE_OCCURRED;
             }
@@ -75,15 +74,17 @@ new Vue({
                     return;
                 }
 
+                // クリア
                 if(value === '') {
                     _this.frames[frameIndex].selectBoxes[selectIndex+1].disabled = true;
                     _this.frames[frameIndex].selectBoxes[selectIndex+1].options = options;
+                // ファール
                 } else if(value === 'F') {
                     _this.frames[frameIndex].selectBoxes[1].disabled = false;
                 } else {
                     // 合計スコアが10を超えないように二投目のプルダウンで選択可能な値を絞る
                     let trancated_options = [];
-                    // プルダウンには空文字とFの2つの数値ではない要素があるので、その分を引いている
+                    // プルダウン内には数値ではない要素が2つある（空文字、F）ので、その分を引いている
                     let length = options.length - value - 2;
                     for(let i = 0; i < length; i++) {
                         trancated_options.push(i);
@@ -117,6 +118,7 @@ new Vue({
                 }
             }
 
+            // スコアの取得
             let value = event.target.value;
             let intValue = parseInt(value, 10);
             if(!Number.isInteger(intValue)) {
