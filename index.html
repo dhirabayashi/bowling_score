@@ -10,21 +10,21 @@
         <table>
             <!-- ヘッダ -->
             <tr>
-                <th v-for="(frame, i) in frames" :key="'header' + i" :colspan="frame.selectBoxes.length">
+                <th v-for="(frame, i) in frames" :key="'header' + i" :colspan="frame.selectBoxes.length" style="background-color: aqua;">
                     {{ frame.num }}
                 </th>
             </tr>
             <!-- 個別のスコア -->
             <tr>
                 <template v-for="(frame, i) in frames">
-                    <td v-for="j of frame.selectBoxes.length" :key="'score_separate' + i + j">
+                    <td v-for="j of frame.selectBoxes.length" :key="'score_separate' + i + j" style="text-align:center">
                         {{ frame.scores[j - 1].toString() }}
                     </td>
                 </template>
             </tr>
             <!-- スコア合計値 -->
             <tr id="score_sum">
-                <td v-for="(frame, i) in frames" :key="'score_sum' + i" :colspan="frame.selectBoxes.length">
+                <td v-for="(frame, i) in frames" :key="'score_sum' + i" :colspan="frame.selectBoxes.length" style="text-align:center">
                     {{ calcTotalScore(i) }}
                 </td>
             </tr>
@@ -44,7 +44,7 @@
                     <div v-for="(split, j) in frame.splits">
                         <input :id="'split' + i + '_' + j"  type="checkbox" v-model="split.checked"
                             @change="changeSplitCheckbox(i, j)" :disabled="split.disabled" />
-                        <label :for="'split' + i + '_' + j" >split</label>
+                        <label :for="'split' + i + '_' + j" style="font-size: xx-small;">{{ makeSplitLabel(i, j) }}</label>
                     </div>
                 </td>
             </tr>

@@ -253,6 +253,16 @@ new Vue({
             return function(i, j) {
                 return this.frames[i].selectBoxes[j].disabled;
             }
+        },
+        makeSplitLabel: function() {
+            return function(frameIndex, selectIndex) {
+                let label = 'スプリット';
+                if(frameIndex === 9) {
+                    return label + '(' + (selectIndex+1) + '投目)';
+                } else {
+                    return label;
+                }
+            }
         }
     }
 });
